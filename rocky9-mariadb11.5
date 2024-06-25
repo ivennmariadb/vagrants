@@ -1,31 +1,38 @@
+# Define configurable variables
+CORES = 2
+MEMORY = 3072
+NAME = "mariadb-rocky9" 
+STORAGE_PATH = "/srv/dev-disk-by-label-volume0/Home/ivenn/vagrants/rocky9-mariadb_comm/VM"
+BRIDGE_INTERFACE = "enp9s0"
+
 Vagrant.configure("2") do |config|
   config.vm.box = "rockylinux/9"
   config.vm.provider "virtualbox"
 
-  config.vm.hostname = "mariadb-rocky9"
+  config.vm.hostname = NAME
   
-  # Set VM memory to 3 GB
+  # Set VM memory 
   config.vm.provider "virtualbox" do |vb|
-    vb.memory = 3072
+    vb.memory = MEMORY
   end
   
-  # Set VM CPUs to 2
+  # Set VM CPUs
   config.vm.provider "virtualbox" do |vb|
-    vb.cpus = 2
+    vb.cpus = CORES
   end
 
   # Set VM storage directory and create SATA controller if needed
   config.vm.provider "virtualbox" do |vb|
-    unless File.exist?("/srv/virtualMachines/rocky9-mariadb/rocky9-mariadb.vdi")
-      vb.customize ["createhd", "--filename", "/srv/dev-disk-by-label-volume0/Home/ivenn/vagrants/rocky9-mariadb_comm/VM/rocky9-mariadb.vdi", "--size", 20 * 1024]
+    unless File.exist?("#{STORAGE_PATH}/#{NAME}.vdi")
+      vb.customize ["createhd", "--filename", "#{STORAGE_PATH}/#{NAME}.vdi", "--size", 20 * 1024]
     end
     
     vb.customize ["storagectl", :id, "--name", "SATA", "--add", "sata", "--controller", "IntelAhci", "--portcount", "2"]
-    vb.customize ["storageattach", :id, "--storagectl", "SATA", "--port", "0", "--device", "0", "--type", "hdd", "--medium", "/srv/dev-disk-by-label-volume0/Home/ivenn/vagrants/rocky9-mariadb_comm/VM/rocky9-mariadb.vdi"]
+    vb.customize ["storageattach", :id, "--storagectl", "SATA", "--port", "0", "--device", "0", "--type", "hdd", "--medium", "#{STORAGE_PATH}/#{NAME}.vdi"]
   end
 
-  # Enable bridged networking on enp9s0 interface
-  config.vm.network "public_network", bridge: "enp9s0"
+  # Enable bridged networking on specified interface
+  config.vm.network "public_network", bridge: BRIDGE_INTERFACE
 
   config.vm.provision "shell", inline: <<-SHELL
     # Add MariaDB 11.5 repository
