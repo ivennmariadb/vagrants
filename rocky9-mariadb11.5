@@ -1,0 +1,64 @@
+Vagrant.configure("2") do |config|
+  config.vm.box = "rockylinux/9"
+  config.vm.provider "virtualbox"
+
+  config.vm.hostname = "mariadb-rocky9"
+  
+  # Set VM memory to 3 GB
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = 3072
+  end
+  
+  # Set VM CPUs to 2
+  config.vm.provider "virtualbox" do |vb|
+    vb.cpus = 2
+  end
+
+  # Set VM storage directory and create SATA controller if needed
+  config.vm.provider "virtualbox" do |vb|
+    unless File.exist?("/srv/virtualMachines/rocky9-mariadb/rocky9-mariadb.vdi")
+      vb.customize ["createhd", "--filename", "/srv/dev-disk-by-label-volume0/Home/ivenn/vagrants/rocky9-mariadb_comm/VM/rocky9-mariadb.vdi", "--size", 20 * 1024]
+    end
+    
+    vb.customize ["storagectl", :id, "--name", "SATA", "--add", "sata", "--controller", "IntelAhci", "--portcount", "2"]
+    vb.customize ["storageattach", :id, "--storagectl", "SATA", "--port", "0", "--device", "0", "--type", "hdd", "--medium", "/srv/dev-disk-by-label-volume0/Home/ivenn/vagrants/rocky9-mariadb_comm/VM/rocky9-mariadb.vdi"]
+  end
+
+  # Enable bridged networking on enp9s0 interface
+  config.vm.network "public_network", bridge: "enp9s0"
+
+  config.vm.provision "shell", inline: <<-SHELL
+    # Add MariaDB 11.5 repository
+    cat > /etc/yum.repos.d/mariadb.repo <<EOF
+[mariadb]
+name = MariaDB
+baseurl = https://mirror.23m.com/mariadb/yum/11.5/rhel/9/x86_64
+module_hotfixes = 1
+gpgkey = https://mirror.23m.com/mariadb/yum/RPM-GPG-KEY-MariaDB
+gpgcheck = 1
+EOF
+
+    # Update system packages
+    dnf update -y
+
+    # Install MariaDB 11.5 server and client
+    dnf install -y MariaDB-server MariaDB-client
+
+    # Start and enable MariaDB service 
+    systemctl start mariadb
+    systemctl enable mariadb
+
+    # Secure the MariaDB installation
+    mariadb-secure-installation <<EOF
+
+y
+vagrant
+vagrant
+y
+y
+y
+y
+EOF
+
+  SHELL
+end
